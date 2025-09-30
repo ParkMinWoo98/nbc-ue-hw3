@@ -10,7 +10,18 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
 class UWidgetComponent;
+class UCharacterBuffComponent;
+class UCharacterAttribute;
+class UBuff;
 struct FInputActionValue;
+
+UENUM(BlueprintType, meta = (Bitflags))
+enum class ECharacterAilment : uint8
+{
+	None			= 0			UMETA(DisplayName = "None"),
+	Blind			= 1 << 0	UMETA(DisplayName = "Blind"),
+	Stunned			= 1 << 1	UMETA(DisplayName = "Stunned"),
+};
 
 UCLASS()
 class SPARTAPROJECT_API ASpartaCharacter : public ACharacter
@@ -28,11 +39,18 @@ public:
 		struct FDamageEvent const& DamageEvent,
 		AController* EventInstigator,
 		AActor* DamageCauser) override;
-
-	UFUNCTION(BlueprintPure, Category = "Health")
-	float GetHealth() const;
 	UFUNCTION(BlueprintCallable, Category = "Health")
 	void AddHealth(float Amount);
+	UFUNCTION(BlueprintCallable, Category = "Buff")
+	void AddBuff(UBuff* Buff);
+
+	UFUNCTION(BlueprintCallable, Category = "Ailment")
+	void AddAilment(ECharacterAilment InAilment);
+	UFUNCTION(BlueprintCallable, Category = "Ailment")
+	void RemoveAilment(ECharacterAilment InAilment);
+	UFUNCTION(BlueprintCallable, Category = "Ailment")
+	bool HasAilment(ECharacterAilment InAilment);
+	void ApplyBlind();
 
 protected:
 	UFUNCTION()
@@ -48,15 +66,20 @@ protected:
 	UFUNCTION()
 	void StopSprint(const FInputActionValue& Value);
 
-	void OnDeath();
-	void UpdateOverheadHp();
-
 	UPROPERTY(VisibleAnywhere, BluePrintReadOnly, Category = "Camera")
 	USpringArmComponent* SpringArmComp;
 	UPROPERTY(VisibleAnywhere, BluePrintReadOnly, Category = "Camera")
 	UCameraComponent* CameraComp;
 	UPROPERTY(EditAnywhere, BluePrintReadOnly, Category = "UI")
 	UWidgetComponent* OverheadWidget;
+	UPROPERTY(EditAnywhere, BluePrintReadOnly, Category = "Buff")
+	UCharacterBuffComponent* BuffComp;
+	UPROPERTY(EditAnywhere, BluePrintReadOnly, Category = "Buff")
+	UCharacterAttribute* AttributeComp;
+	UPROPERTY(EditAnywhere, Category = "UI")
+	TSubclassOf<UUserWidget> BlindPanelWidgetClass;
+	UPROPERTY()
+	UUserWidget* BlindPanelWidgetInstance;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	UInputAction* MoveAction;
@@ -67,13 +90,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	UInputAction* SprintAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
-	float Health;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health")
-	float MaxHealth;
-
-private:
-	float NormalSpeed;
-	float SprintSpeedMultiplier;
-	float SprintSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (Bitmask, BitmaskEnum = "ECharacterAilment"))
+	uint8 Ailment;
 };

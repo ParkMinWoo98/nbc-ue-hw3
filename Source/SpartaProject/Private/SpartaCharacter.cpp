@@ -4,9 +4,9 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "CharacterBuffComponent.h"
 #include "Components/WidgetComponent.h"
-#include "SpartaGameState.h"
-#include "Components/TextBlock.h"
+#include "CharacterAttribute.h"
 
 ASpartaCharacter::ASpartaCharacter()
 {
@@ -24,22 +24,26 @@ ASpartaCharacter::ASpartaCharacter()
 	OverheadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverheadWidget"));
 	OverheadWidget->SetupAttachment(GetMesh());
 	OverheadWidget->SetWidgetSpace(EWidgetSpace::Screen);
+	
+	BuffComp = CreateDefaultSubobject<UCharacterBuffComponent>(TEXT("CharacterBuff"));
+	AttributeComp = CreateDefaultSubobject<UCharacterAttribute>(TEXT("CharacterAttribute"));
 
-	NormalSpeed = 600.0f;
-	SprintSpeedMultiplier = 2.0f;
-	SprintSpeed = NormalSpeed * SprintSpeedMultiplier;
-
-	GetCharacterMovement()->MaxWalkSpeed = NormalSpeed;
-
-	MaxHealth = 100.0f;
-	Health = MaxHealth;
+	Ailment = static_cast<uint8>(ECharacterAilment::None);
 }
 
 void ASpartaCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	UpdateOverheadHp();
+	if (BlindPanelWidgetClass)
+	{
+		BlindPanelWidgetInstance = CreateWidget<UUserWidget>(GetWorld(), BlindPanelWidgetClass);
+		if (BlindPanelWidgetInstance)
+		{
+			BlindPanelWidgetInstance->AddToViewport(0);
+			BlindPanelWidgetInstance->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
 }
 
 void ASpartaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -51,7 +55,7 @@ void ASpartaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ASpartaCharacter::Move);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Triggered, this, &ASpartaCharacter::StartJump);
 		EnhancedInput->BindAction(JumpAction, ETriggerEvent::Completed, this, &ASpartaCharacter::StopJump);
-		EnhancedInput->BindAction( LookAction, ETriggerEvent::Triggered, this, &ASpartaCharacter::Look);
+		EnhancedInput->BindAction(LookAction, ETriggerEvent::Triggered, this, &ASpartaCharacter::Look);
 		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Triggered, this, &ASpartaCharacter::StartSprint);
 		EnhancedInput->BindAction(SprintAction, ETriggerEvent::Completed, this, &ASpartaCharacter::StopSprint);
 	}
@@ -60,41 +64,64 @@ void ASpartaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 float ASpartaCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	Health = FMath::Clamp(Health - DamageAmount, 0.0f, MaxHealth);
-	UpdateOverheadHp();
-	UE_LOG(LogTemp, Warning, TEXT("Health decreased to: %f"), Health);
-	if (Health <= 0.0f)
-	{
-		OnDeath();
-	}
-	return ActualDamage;
-}
-
-float ASpartaCharacter::GetHealth() const
-{
-	return Health;
+	return AttributeComp ? AttributeComp->ApplyDamage(ActualDamage) : 0.0f;
 }
 
 void ASpartaCharacter::AddHealth(float Amount)
 {
-	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);
-	UpdateOverheadHp();
-	UE_LOG(LogTemp, Warning, TEXT("Health increased to: %f"), Health);
+	if (AttributeComp)
+	{
+		AttributeComp->AddHealth(Amount);
+	}
+}
+
+void ASpartaCharacter::AddBuff(UBuff* Buff)
+{
+	if (BuffComp)
+	{
+		BuffComp->AddBuff(Buff);
+	}
+}
+
+void ASpartaCharacter::AddAilment(ECharacterAilment InAilment)
+{
+	Ailment |= static_cast<uint8>(InAilment);
+	ApplyBlind();
+}
+
+void ASpartaCharacter::RemoveAilment(ECharacterAilment InAilment)
+{
+	Ailment &= ~static_cast<uint8>(InAilment);
+	ApplyBlind();
+}
+
+bool ASpartaCharacter::HasAilment(ECharacterAilment InAilment)
+{
+	return (Ailment & static_cast<uint8>(InAilment)) != 0;
+}
+
+void ASpartaCharacter::ApplyBlind()
+{
+	if (BlindPanelWidgetInstance)
+	{
+		BlindPanelWidgetInstance->SetVisibility(HasAilment(ECharacterAilment::Blind) ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+	}
 }
 
 void ASpartaCharacter::Move(const FInputActionValue& Value)
 {
 	if (!Controller) return;
 
+	bool bReverseControl = AttributeComp ? AttributeComp->GetReverseControl() : false;
 	const FVector2D MoveInput = Value.Get<FVector2D>();
 	if (!FMath::IsNearlyZero(MoveInput.X))
 	{
-		AddMovementInput(GetActorForwardVector(), MoveInput.X);
+		AddMovementInput(GetActorForwardVector(), bReverseControl ? -MoveInput.X : MoveInput.X);
 	}
 
 	if (!FMath::IsNearlyZero(MoveInput.Y))
 	{
-		AddMovementInput(GetActorRightVector(), MoveInput.Y);
+		AddMovementInput(GetActorRightVector(), bReverseControl ? -MoveInput.Y : MoveInput.Y);
 	}
 }
 
@@ -124,38 +151,10 @@ void ASpartaCharacter::Look(const FInputActionValue& Value)
 
 void ASpartaCharacter::StartSprint(const FInputActionValue& Value)
 {
-	if (GetCharacterMovement())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
-	}
+	AttributeComp->Sprint(true);
 }
 
 void ASpartaCharacter::StopSprint(const FInputActionValue& Value)
 {
-	if (GetCharacterMovement())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = NormalSpeed;
-	}
-}
-
-void ASpartaCharacter::OnDeath()
-{
-	ASpartaGameState* SpartaGameState = GetWorld() ? GetWorld()->GetGameState<ASpartaGameState>() : nullptr;
-	if (SpartaGameState)
-	{
-		SpartaGameState->OnGameOver();
-	}
-}
-
-void ASpartaCharacter::UpdateOverheadHp()
-{
-	if (!OverheadWidget) return;
-
-	UUserWidget* OverheadWidgetInstance = OverheadWidget->GetUserWidgetObject();
-	if (!OverheadWidgetInstance) return;
-
-	if (UTextBlock* HPText = Cast<UTextBlock>(OverheadWidgetInstance->GetWidgetFromName(TEXT("OverheadHp"))))
-	{
-		HPText->SetText(FText::FromString(FString::Printf(TEXT("%.0f / %.0f"), Health, MaxHealth)));
-	}
+	AttributeComp->Sprint(false);
 }

@@ -16,7 +16,7 @@ void AHealingItem::ActivateItem_Implementation(AActor* Activator)
 		if (ASpartaCharacter* PlayerCharacter = Cast<ASpartaCharacter>(Activator))
 		{
 			PlayerCharacter->AddHealth(HealAmount);
-		}		
+		}
 		DestroyItem();
 	}
 }

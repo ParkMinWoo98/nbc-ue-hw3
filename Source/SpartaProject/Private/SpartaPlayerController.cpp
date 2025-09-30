@@ -5,13 +5,18 @@
 #include "Components/TextBlock.h"
 #include "SpartaGameInstance.h"
 #include "Kismet/GameplayStatics.h"
+#include "Components/VerticalBox.h"
+#include "UIHUD.h"
+#include "CharacterBuffComponent.h"
 
 ASpartaPlayerController::ASpartaPlayerController()
 	: InputMappingContext(nullptr),
 	HUDWidgetClass(nullptr),
 	HUDWidgetInstance(nullptr),
 	MainMenuWidgetClass(nullptr),
-	MainMenuWidgetInstance(nullptr)
+	MainMenuWidgetInstance(nullptr),
+	GameOverMenuWidgetClass(nullptr),
+	GameOverMenuWidgetInstance(nullptr)
 {
 }
 
@@ -60,7 +65,17 @@ void ASpartaPlayerController::ShowGameHUD()
 		HUDWidgetInstance = CreateWidget<UUserWidget>(this, HUDWidgetClass);
 		if (HUDWidgetInstance)
 		{
-			HUDWidgetInstance->AddToViewport();
+			if (UUIHUD* UIHUD = Cast<UUIHUD>(HUDWidgetInstance))
+			{
+				if (APawn* MyPawn = GetPawn())
+				{
+					if (UCharacterBuffComponent* BuffComponent = MyPawn->FindComponentByClass<UCharacterBuffComponent>())
+					{
+						BuffComponent->OnBuffAdded.AddDynamic(UIHUD, &UUIHUD::AddBuff);
+					}
+				}
+			}
+			HUDWidgetInstance->AddToViewport(10);
 
 			bShowMouseCursor = false;
 			SetInputMode(FInputModeGameOnly());
@@ -82,7 +97,7 @@ void ASpartaPlayerController::ShowGameMainMenu()
 		MainMenuWidgetInstance = CreateWidget<UUserWidget>(this, MainMenuWidgetClass);
 		if (MainMenuWidgetInstance)
 		{
-			MainMenuWidgetInstance->AddToViewport();
+			MainMenuWidgetInstance->AddToViewport(10);
 
 			bShowMouseCursor = true;
 			SetInputMode(FInputModeUIOnly());
@@ -102,7 +117,7 @@ void ASpartaPlayerController::ShowGameOverMenu()
 		GameOverMenuWidgetInstance = CreateWidget<UUserWidget>(this, GameOverMenuWidgetClass);
 		if (GameOverMenuWidgetInstance)
 		{
-			GameOverMenuWidgetInstance->AddToViewport();
+			GameOverMenuWidgetInstance->AddToViewport(10);
 
 			bShowMouseCursor = true;
 			SetInputMode(FInputModeUIOnly());
