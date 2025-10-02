@@ -5,6 +5,7 @@
 #include "SpartaGameState.generated.h"
 
 class ULevelWaveDataAsset;
+class AFallingBomb;
 
 UCLASS()
 class SPARTAPROJECT_API ASpartaGameState : public AGameStateBase
@@ -34,6 +35,9 @@ public:
 	void OnCoinCollected();
 	void UpdateHUD();
 
+	void SpawnBomb();
+	void AnnounceStartWaveHUD();
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Score")
 	int32 Score;
@@ -51,4 +55,5 @@ protected:
 private:
 	FTimerHandle LevelTimerHandle;
 	FTimerHandle HUDUpdateTimerHandle;
+	FTimerHandle FallingBombTimerHandle;
 };

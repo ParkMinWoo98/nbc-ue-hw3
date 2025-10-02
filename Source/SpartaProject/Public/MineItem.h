@@ -4,6 +4,8 @@
 #include "BaseItem.h"
 #include "MineItem.generated.h"
 
+class UDangerAreaComponent;
+
 UCLASS()
 class SPARTAPROJECT_API AMineItem : public ABaseItem
 {
@@ -11,8 +13,6 @@ class SPARTAPROJECT_API AMineItem : public ABaseItem
 	
 public:
     AMineItem();
-
-    virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     void ActivateItem_Implementation(AActor* Activator);
 
     void Explode();
@@ -20,6 +20,8 @@ public:
 protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
     USphereComponent* ExplosionCollision;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
+    UDangerAreaComponent* DangerArea;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item | Effect")
     UParticleSystem* ExplosionParticle;

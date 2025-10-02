@@ -10,9 +10,13 @@ struct FWaveData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	float WaveDuration;
+	float WaveDuration = 0.0f;
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	int32 ItemCount;
+	int32 ItemCount = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	float BombSpawnInterval = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	TSubclassOf<AActor> BombClass;
 };
 
 USTRUCT(BlueprintType)

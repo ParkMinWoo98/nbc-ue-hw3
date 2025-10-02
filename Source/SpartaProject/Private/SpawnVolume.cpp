@@ -1,5 +1,6 @@
 ﻿#include "SpawnVolume.h"
 #include "Components/BoxComponent.h"
+#include "CoinItem.h"
 
 ASpawnVolume::ASpawnVolume()
 {
@@ -24,9 +25,9 @@ AActor* ASpawnVolume::SpawnItem(TSubclassOf<AActor> ItemClass)
 	return SpawnedActor;
 }
 
-AActor* ASpawnVolume::SpawnRandomItem()
+AActor* ASpawnVolume::SpawnRandomItem(TSubclassOf<AActor> ItemClass)
 {
-	if (FItemSpawnRow* SelectedRow = GetRandomItem())
+	if (FItemSpawnRow* SelectedRow = GetRandomItem(ItemClass))
 	{
 		if (UClass* ActualClass = SelectedRow->ItemClass.Get())
 		{
@@ -36,7 +37,7 @@ AActor* ASpawnVolume::SpawnRandomItem()
 	return nullptr;
 }
 
-FItemSpawnRow* ASpawnVolume::GetRandomItem() const
+FItemSpawnRow* ASpawnVolume::GetRandomItem(TSubclassOf<AActor> ItemClass) const
 {
 	if (!ItemDataTable) return nullptr;
 
@@ -44,10 +45,26 @@ FItemSpawnRow* ASpawnVolume::GetRandomItem() const
 	static const FString ContextString(TEXT("ItemSpawnContext"));
 	ItemDataTable->GetAllRows(ContextString, AllRows);
 
-	if (AllRows.IsEmpty()) return nullptr;
+	if (ItemClass == nullptr)
+		return GetRandomItem(AllRows);
+
+	TArray<FItemSpawnRow*> SelectedItemRows;
+	for (FItemSpawnRow* Row : AllRows)
+	{
+		if (Row->ItemClass.Get()->IsChildOf(ItemClass))
+		{
+			SelectedItemRows.Add(Row);
+		}
+	}
+	return GetRandomItem(SelectedItemRows);
+}
+
+FItemSpawnRow* ASpawnVolume::GetRandomItem(const TArray<FItemSpawnRow*> ItemSpawnRows) const
+{
+	if (ItemSpawnRows.IsEmpty()) return nullptr;
 
 	float TotalChance = 0.0f;
-	for (const FItemSpawnRow* Row : AllRows)
+	for (const FItemSpawnRow* Row : ItemSpawnRows)
 	{
 		if (Row)
 		{
@@ -57,7 +74,7 @@ FItemSpawnRow* ASpawnVolume::GetRandomItem() const
 
 	const float RandValue = FMath::FRandRange(0.0f, TotalChance);
 	float AccumulateChance = 0.0f;
-	for (FItemSpawnRow* Row : AllRows)
+	for (FItemSpawnRow* Row : ItemSpawnRows)
 	{
 		AccumulateChance += Row->SpawnChance;
 		if (RandValue <= AccumulateChance)

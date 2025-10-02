@@ -101,16 +101,18 @@ void ASpartaGameState::EndLevel()
 
 void ASpartaGameState::StartWave()
 {
+	GetWorldTimerManager().ClearTimer(FallingBombTimerHandle);
 	TArray<AActor*> FoundVolumes;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
 
 	const int32 ItemToSpawn = LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].ItemCount;
-	for (int32 i = 0; i < ItemToSpawn; i++)
+	if (FoundVolumes.Num() > 0)
 	{
-		if (FoundVolumes.Num() > 0)
+		if (ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]))
 		{
-			ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
-			if (SpawnVolume)
+			AActor* SpawnedCoin= SpawnVolume->SpawnRandomItem(ACoinItem::StaticClass());
+			SpawnedCoinCount++;
+			for (int32 i = 1; i < ItemToSpawn; i++)
 			{
 				AActor* SpawnedActor = SpawnVolume->SpawnRandomItem();
 				if (SpawnedActor && SpawnedActor->IsA(ACoinItem::StaticClass()))
@@ -121,6 +123,14 @@ void ASpartaGameState::StartWave()
 		}
 	}
 
+	SpawnBomb();
+	GetWorldTimerManager().SetTimer(
+		FallingBombTimerHandle,
+		this,
+		&ASpartaGameState::SpawnBomb,
+		LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombSpawnInterval,
+		true);
+	AnnounceStartWaveHUD();
 	UpdateHUD();
 	GetWorldTimerManager().SetTimer(
 		LevelTimerHandle,
@@ -211,6 +221,45 @@ void ASpartaGameState::UpdateHUD()
 				if (UTextBlock* LevelIndexText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("Wave"))))
 				{
 					LevelIndexText->SetText(FText::FromString(FString::Printf(TEXT("Wave: %d / %d"), CurrentWaveIndex + 1, LevelData->LevelWaves[CurrentLevelIndex].WaveDatas.Num())));
+				}
+			}
+		}
+	}
+}
+
+void ASpartaGameState::SpawnBomb()
+{
+	TArray<AActor*> FoundVolumes;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ASpawnVolume::StaticClass(), FoundVolumes);
+	if (FoundVolumes.Num() > 0)
+	{
+		ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
+		if (SpawnVolume)
+		{
+			AActor* SpawnedActor = SpawnVolume->SpawnItem(LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombClass);
+		}
+	}
+}
+
+void ASpartaGameState::AnnounceStartWaveHUD()
+{
+	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
+	{
+		if (ASpartaPlayerController* SpartaPlayerController = Cast<ASpartaPlayerController>(PlayerController))
+		{
+			if (UUserWidget* HUDWidget = SpartaPlayerController->GetHUDWidget())
+			{
+				if (UTextBlock* BombText = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("AnnounceWave"))))
+				{
+					float RemainingTime = FMath::Max(GetWorldTimerManager().GetTimerRemaining(LevelTimerHandle), 0.0f);
+					BombText->SetText(FText::FromString(FString::Printf(TEXT("WAVE: %d, Bombs spawn every %.1fs!!"), 
+							CurrentWaveIndex + 1, 
+							LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombSpawnInterval)));
+				}
+				
+				if (UFunction* PlayAnimFunc = HUDWidget->FindFunction(FName("PlayAnnounceWaveAnim")))
+				{
+					HUDWidget->ProcessEvent(PlayAnimFunc, nullptr);
 				}
 			}
 		}

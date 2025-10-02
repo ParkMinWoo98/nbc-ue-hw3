@@ -1,56 +1,56 @@
-﻿#include "MineItem.h"
-#include "Components/SphereComponent.h"
+﻿#include "FallingBomb.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystemComponent.h"
+#include "Components/SphereComponent.h"
 #include "DangerAreaComponent.h"
 
-AMineItem::AMineItem()
+AFallingBomb::AFallingBomb()
 {
-	PrimaryActorTick.bCanEverTick = true;
-
-	ExplosionDelay = 3.0f;
-	ExplosionRadius = 400.0f;
+	ExplosionRadius = 300.0f;
 	ExplosionDamage = 30;
-	ItemType = "Mine";
-	bHasExploded = false;
+
+	Collision = CreateDefaultSubobject<USphereComponent>(TEXT("Collision"));
+	SetRootComponent(Collision);
+	Collision->SetCollisionProfileName(TEXT("BlockAll"));
+	Collision->OnComponentHit.AddDynamic(this, &AFallingBomb::OnHit);
+
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMesh"));
+	StaticMesh->SetupAttachment(Collision);
 
 	ExplosionCollision = CreateDefaultSubobject<USphereComponent>(TEXT("ExplosionCollision"));
 	ExplosionCollision->InitSphereRadius(ExplosionRadius);
 	ExplosionCollision->SetCollisionProfileName(TEXT("OverlapAllDynamic"));
-	ExplosionCollision->SetupAttachment(Scene);
+	ExplosionCollision->SetupAttachment(Collision);
+	ExplosionCollision->SetVisibility(false);
 
 	DangerArea = CreateDefaultSubobject<UDangerAreaComponent>(TEXT("DangerArea"));
 }
 
-void AMineItem::ActivateItem_Implementation(AActor* Activator)
+void AFallingBomb::BeginPlay()
 {
-	if (bHasExploded) return;
-
-	Super::ActivateItem_Implementation(Activator);
-
-	GetWorld()->GetTimerManager().SetTimer(
-		ExplosionTimerHandle,
-		this,
-		&AMineItem::Explode,
-		ExplosionDelay,
-		false);
+	Super::BeginPlay();
 
 	FVector CurrLocation = GetActorLocation();
+	CurrLocation.Z = 4000.0f;
+	SetActorLocation(CurrLocation);
 	if (DangerArea)
 	{
 		DangerArea->Spawn(
-			FVector(1.0f, ExplosionRadius, ExplosionRadius),
+			FVector(1.0f, 200.0f, 200.0f),
 			FVector(CurrLocation.X, CurrLocation.Y, 0.0f),
 			FRotator(-90.f, 0.0f, 0.0f),
-			ExplosionDelay,
-			DangerAreaEffectType::Fill,
+			2.0f,
+			DangerAreaEffectType::FadeIn,
 			false);
 	}
-
-	bHasExploded = true;
 }
 
-void AMineItem::Explode()
+void AFallingBomb::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& SweepResult)
+{
+	Explode();
+}
+
+void AFallingBomb::Explode()
 {
 	UParticleSystemComponent* Particle = nullptr;
 	if (ExplosionParticle)
@@ -61,6 +61,7 @@ void AMineItem::Explode()
 			GetActorLocation(),
 			GetActorRotation(),
 			false);
+		Particle->SetRelativeScale3D(FVector(1.0f, 10.0f, 10.0f));
 	}
 
 	if (ExplosionSound)
@@ -72,6 +73,8 @@ void AMineItem::Explode()
 	}
 
 	TArray<AActor*> OverlappingActors;
+	ExplosionCollision->SetVisibility(true);
+	ExplosionCollision->SetRelativeLocation(StaticMesh->GetRelativeLocation());
 	ExplosionCollision->GetOverlappingActors(OverlappingActors);
 
 	for (AActor* Actor : OverlappingActors)
@@ -86,7 +89,8 @@ void AMineItem::Explode()
 				UDamageType::StaticClass());
 		}
 	}
-	DestroyItem();
+
+	Destroy();
 
 	if (Particle)
 	{

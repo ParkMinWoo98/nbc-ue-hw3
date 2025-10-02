@@ -7,12 +7,12 @@ UCharacterBuffComponent::UCharacterBuffComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-
 void UCharacterBuffComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
 }
+
 void UCharacterBuffComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

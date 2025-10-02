@@ -18,10 +18,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
 	AActor* SpawnItem(TSubclassOf<AActor> ItemClass);
 	UFUNCTION(BlueprintCallable, Category = "Spawning")
-	AActor* SpawnRandomItem();
+	AActor* SpawnRandomItem(TSubclassOf<AActor> ItemClass = nullptr);
 
 protected:
-	FItemSpawnRow* GetRandomItem() const;
+	FItemSpawnRow* GetRandomItem(TSubclassOf<AActor> ItemClass = nullptr) const;
+	FItemSpawnRow* GetRandomItem(const TArray<FItemSpawnRow*> ItemSpawnRows) const;
 	FVector GetRandomPointInVolume() const;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Spawning")
