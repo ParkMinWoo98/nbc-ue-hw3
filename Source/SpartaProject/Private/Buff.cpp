@@ -25,7 +25,6 @@ void UBuff::Remove_Implementation(ASpartaCharacter* Target)
 void UBuff::SetId()
 {
 	BuffId = NextId++;
-	UE_LOG(LogTemp, Warning, TEXT("BuffId: %d ======= %d"), BuffId, NextId);
 }
 
 void UBuff::SetRemainTime(float NewRemainTime)

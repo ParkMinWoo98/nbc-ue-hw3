@@ -64,12 +64,6 @@ void UCharacterBuffComponent::AddBuff(UBuff* Buff)
 	Buff->Apply(SpartaCharacter);
 	Buffs.Add(Buff);
 	OnBuffAdded.Broadcast(Buff);
-
-	GEngine->AddOnScreenDebugMessage(
-		-1,
-		6.0f,
-		FColor::Green,
-		FString::Printf(TEXT("BuffId: %d"), Buff->GetId()));
 }
 
 UBuff* UCharacterBuffComponent::FindBuffOfClass(TSubclassOf<UBuff> BuffClass) const

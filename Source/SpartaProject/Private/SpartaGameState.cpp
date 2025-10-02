@@ -138,12 +138,6 @@ void ASpartaGameState::StartWave()
 		&ASpartaGameState::OnWaveTimeUp,
 		LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].WaveDuration,
 		false);
-
-	GEngine->AddOnScreenDebugMessage(
-		-1,
-		2.0f,
-		FColor::Green,
-		FString::Printf(TEXT("Level %d, Wave %d Start!, Spawned %d Coin"), CurrentLevelIndex + 1, CurrentWaveIndex + 1, SpawnedCoinCount));
 }
 
 void ASpartaGameState::EndWave()
@@ -236,7 +230,12 @@ void ASpartaGameState::SpawnBomb()
 		ASpawnVolume* SpawnVolume = Cast<ASpawnVolume>(FoundVolumes[0]);
 		if (SpawnVolume)
 		{
-			AActor* SpawnedActor = SpawnVolume->SpawnItem(LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombClass);
+			if (CurrentLevelIndex < LevelData->LevelWaves.Num() &&
+				CurrentWaveIndex < LevelData->LevelWaves[CurrentLevelIndex].WaveDatas.Num() &&
+				LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombClass)
+			{
+				AActor* SpawnedActor = SpawnVolume->SpawnItem(LevelData->LevelWaves[CurrentLevelIndex].WaveDatas[CurrentWaveIndex].BombClass);
+			}
 		}
 	}
 }
